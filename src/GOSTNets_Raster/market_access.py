@@ -64,7 +64,7 @@ def get_roads(b):
     sel_roads['speed'] = sel_roads['highway'].apply(lambda x: get_speed(x, speed_dict))
     return(sel_roads)
 
-def get_mcp_dests(inH, destinations):
+def get_mcp_dests(inH, destinations, makeset=True):
     ''' Get indices from inH for use in mcp.find_costs
     INPUT
         inH[rasterio] - object from which to extract geographic coordinates
@@ -72,10 +72,30 @@ def get_mcp_dests(inH, destinations):
     RETURN
         [list of indices]
     '''
-    cities = list(set([inH.index(x.x, x.y) for x in destinations['geometry']]))
+    if makeset:
+        cities = list(set([inH.index(x.x, x.y) for x in destinations['geometry']]))
+    else:
+        cities = list([inH.index(x.x, x.y) for x in destinations['geometry']])
+        
     cities = [x for x in cities if ((x[0] > 0) and (x[1] > 0) and 
                 (x[0] <= inH.shape[0]) and (x[1] <= inH.shape[1]))]
     return(cities)
+    
+def name_mcp_dests(inH, destinations):
+    ''' Somestimes multiple destinations fall within the same cell and duplicates are removed before processing in get_mcp_dests.
+            This function is designed to created a column in destinations that can be merged with results from get_mcp_dests
+        INPUT
+            inH[rasterio] - object from which to extract geographic coordinates
+            destinations[geopandas geodataframe] - point geodataframe of destinations
+        RETURN
+            destinations [geopandas] - returns with new column called MCP_DESTS_NAME        
+    '''
+    destinations['MCP_DESTS_NAME'] = ''
+    for idx, row in destinations.iterrows():
+        x = row['geometry']
+        destinations.loc[idx, 'MCP_DESTS_NAME'] = "_".join([str(xx) for xx in inH.index(x.x, x.y)])    
+    return(destinations)
+    
     
 def generate_network_raster(inH, sel_roads, min_speed=5, speed_col='speed', resolution=100):   
     ''' Create raster with network travel times from a road network
