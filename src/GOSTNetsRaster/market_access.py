@@ -1,3 +1,10 @@
+""" Simplify calculations of travel time over gridded friction surfaces using skimage.graph
+
+TBD description
+
+"""
+
+
 import sys, os, importlib, time, copy
 import rasterio
 
@@ -7,6 +14,7 @@ import geopandas as gpd
 import osmnx as ox
 import GOSTnets as gn
 import skimage.graph as graph
+import GOSTRocks.rasterMisc as rMisc
 
 from skimage.graph import _mcp
 from rasterio.mask import mask
@@ -307,3 +315,56 @@ def generate_market_sheds_old(img, mcp, inH, out_file = '', verbose=True):
         with rasterio.open(out_file, 'w', **meta) as outR:
             outR.write_band(1, output)
     return(output)
+    
+def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file='', thresholds=[30,60,120,180,240]):
+    ''' Summarize the population according to travel time within a set of thresholds
+    
+    Args:
+        popR:   rasterio object describing the population data
+        dests:  geopandas.GeoDataFrame describing the destinations for the travel time calculation
+        ttR:    rasterio obejct describing the travel time raster
+        mcp:    skimage.graph object created from ttR
+        zonalD: geopandas.GeoDataFrane of zones for summarizing population
+        thresholds: Optional; travel times at which to summarize population
+    Returns:
+        A geopandas.GeoDataFrame with extra columns describing the population within traveltime thresholds
+    '''
+    # Check inputs
+    if popR.crs != ttR.crs:
+        raise(ValueError("Population and Travel time must have matching CRS and shape"))
+    if popR.shape != ttR.shape:
+        popD, profile = rMisc.standardizeInputRasters(popR, ttR)       
+    else:
+        popD = popR.read()           
+    if popR.crs.to_epsg() != zonalD.crs.to_epsg():
+        zonalD = zonalD.to_crs(popR.crs)
+    if popR.crs.to_epsg() != dests.crs.to_epsg():
+        dests = dests.to_crs(popR.crs)
+    
+    res = rMisc.zonalStats(zonalD, popR, minVal=0)
+    res = pd.DataFrame(res, columns=['SUM','MIN','MAX','MEAN'])
+    zonalD[f'total_pop'] = res['SUM']
+    
+    
+    # calculate travel time to destinations
+    ttD, traceback = calculate_travel_time(ttR, mcp, dests)   
+    if out_tt_file != '':
+        ttD = ttD.astype(ttR.meta['dtype'])
+        with rasterio.open(out_tt_file, 'w', **ttR.meta) as outR:
+            outR.write_band(1, ttD)
+        
+    for thresh in thresholds:
+        cur_ttD = ttD <= thresh
+        cur_popD = popD * cur_ttD        
+        with rMisc.create_rasterio_inmemory(popR.profile, cur_popD) as cur_popR:
+            res = rMisc.zonalStats(zonalD, cur_popR, minVal=0)
+            res = pd.DataFrame(res, columns=['SUM','MIN','MAX','MEAN'])
+            zonalD[f'pop_{thresh}'] = res['SUM']
+            
+    return(zonalD)
+        
+        
+        
+        
+        
+        
