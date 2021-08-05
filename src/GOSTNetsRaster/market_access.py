@@ -172,29 +172,79 @@ def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx, verbose=Tr
         mcp [skimage.graph.MCP_Geometric] - input graph
         inH [geopandas data frame] - geopandas data frame from which to calculate features
         threshold [list of int] - travel treshold from which to calculate vectors in units of graph
-        featIdx [string] - column name in inH to append to output marketshed dataset
+        featIdx [string] - column name in inH to append to output marketshed dataset. 'tempID' for default.
         
     RETURNS
         [geopandas dataframe]
     '''
     n = inH.shape[0]
+    inH['tempID'] = inH.index
+    #Create temporary index (tempID) in the original shape to be fed to 'featIdx.'
+   
     feat_count = 0
     complete_shapes = []
+   
     for idx, row in inH.iterrows():
+    # The 1st iteration loop for each target point.
+   
         feat_count = feat_count + 1
+      
         if verbose:
             tPrint(f"{feat_count} of {n}: {row[featIdx]}")
-        cur_idx = network_r.index(row['geometry'].x, row['geometry'].y)
+            # This is just to genereate a progress message.
+            
+        cur_idx = network_r.index(row['geometry'].x, row['geometry'].y)  
+        # Retrive a xy coordinate of the target point shape from 'geometry' column (at row idx).
+        # And retrive the rc location at the target network raster that is corresponding to the xy cooridnate.
+
         if cur_idx[0] > 0 and cur_idx[1] > 0 and cur_idx[0] < network_r.shape[0] and cur_idx[1] < network_r.shape[1]:
             costs, traceback = mcp.find_costs([cur_idx])
+            # Checking the validity of cur_idx (Row x Column) - they must be postive and within the shape of the target raster.
+
             for thresh in threshold:
+            # The 2nd iteration loop for the threshold value in minutes (e.g. 60, 120, 180, 240) specified by 'threshold' variable.
+
                 within_time = ((costs < thresh) * 1).astype('int16')
-                all_shapes = []
-                for cShape, value in features.shapes(within_time, transform = network_r.transform):
-                    if value == 1.0:
-                        all_shapes.append([shape(cShape)])
-                complete_shape = cascaded_union([x[0] for x in all_shapes])
-                complete_shapes.append([complete_shape, thresh, row[featIdx]])
+                within_time_mask = within_time > 0
+                # Masking cells in the raster that are less than the selected threshold value by inserting 1 (int16).
+                # The cells larger than the 'thresh' value are masked by 0 (int16).
+                # within_time numpy array will be trasnformed into boolean type by 'within_time > 0'
+                # to be used in the mask of 'features.shapes' below to exclude features (cells) with False (=0).
+
+                all_shapes = []# Creating an empty list to store shapes.
+                
+                polyCount = 0
+                for poly, value in features.shapes(within_time, mask = within_time_mask, transform = network_r.transform):
+                # The 3rd iteration loop for retriving a pair of polygon and value for each feature found in the raster image.
+                    polyCount += 1
+                    all_shapes.append([shape(poly)])
+
+                # Convert 'all_shapes' list to 'gs' GeoSeries.
+                gs = gpd.GeoSeries()#Create an empty GeoSeries.
+            
+                for x in all_shapes:
+                	gsTemp = gpd.GeoSeries(x)
+                	gs = gs.append(gsTemp)
+            
+                gs = gs.reset_index(drop=True)#Reset the index of 'gs'
+            
+        
+            	# Geometry validity check and correction
+                for i, geom in enumerate(gs):
+                    geomCheck = geom.is_valid
+                    if geomCheck == False:
+                        gs[i] = geom.buffer(0)
+                    	# Conventional way to correct invalid geometry.
+                    	# Not sure how this create difference b/w the non-corrected and the corrected.
+            
+            	# Geometry validity double-check (inform the result to the user)
+                # This code block can be omitted if it's redundant.
+                for i, geom in enumerate(gs):
+                	print('Geometry No. {}: Validity = {} | THS = {} minutes | Poly Count = {}'.format(i, geom.is_valid, thresh, polyCount))
+
+                union = gs.unary_union
+                complete_shapes.append([union, thresh, row[featIdx]])
+				
     final = gpd.GeoDataFrame(complete_shapes, columns=["geometry", "threshold", "IDX"], crs=network_r.crs)
     return(final)
     
