@@ -247,13 +247,52 @@ def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx, verbose=Tr
 				
     final = gpd.GeoDataFrame(complete_shapes, columns=["geometry", "threshold", "IDX"], crs=network_r.crs)
     return(final)
+ 
+def raster_cleaner(inR, bandIdx=0, R=7, noRep=9999, infRep=9999):
+    ''' Clean the raster values of the target raster inR:
+        When the target raster contains very small/large values (e.g. FLOAT64, INT64),
+        FLOAT Infinity (inf), and invalid nodata values, some of the processes of
+        generate_market_shed function will fail due to overflow of the datatype.
+        Cleaning the raster can avoid such an error.
+        Note that it is important to carefully review the final product to avoid
+        unintended results because this function changes raster values.
     
-def generate_market_sheds(inR, inH, out_file='', verbose=True, factor=1000, bandIdx=0):
+    INPUTS
+        (1) inR: target raster data
+        (2) bandIdx: target band in the specified raster. Default = 0
+        (3) R: Significant digits to raund the raster values. Default = 7
+        (4) noRep: The number to replace nodata values. Default = 9999
+        (5) infRep: The number to replace float inf. Default = 9999
+        
+    RETURNS
+        [numpy array]
+    '''
+    
+    x = inR.read()[bandIdx,:,:]
+ 
+    # Transform the numpy array x to a Pandas DF to use round() function of Pandas.
+    # Round to the nearest R significant digits. And transform to a numpy array again.
+    dfTemp = pd.DataFrame(x)
+    dfTemp = dfTemp.round(R)
+    x = np.array(dfTemp.values)
+
+    # Where statement IF x == inR.notada value, replaced by the noRep value. Otherwise, x remains as it is.
+    x = np.where(x == inR.nodata, noRep, x)
+    
+    # Where statement IF x == float inf, replaced by the infRep value. Otherwise, x remains as it is.
+    x = np.where(x == float('inf'), infRep, x)
+    
+    return(x)
+   
+def generate_market_sheds(inR, inH, out_file='', verbose=True, factor=1000, bandIdx=0, rCleaner='NO'):
     ''' identify pixel-level maps of market sheds based on travel time    
     INPUTS
-        inR [rasterio] - raster from which to grab index for calculations in MCP
-        inH [geopandas data frame] - geopandas data frame of destinations
-        factor [int] - value by which to multiply raster 
+        (1) inR [rasterio] - raster from which to grab index for calculations in MCP
+        (2) inH [geopandas data frame] - geopandas data frame of destinations
+        (3) factor [int] - value by which to multiply raster 
+        (4) rCleaner: Activate the raster clener function and clean up the input raster date before
+            sending it to the actual analysis. Default='NO' Chenge to 'YES' when you get an error to generate
+            a market shed raster. Usually, errors from this function are caused by dirty raster values.
         
     RETURNS
         [numpy array] - marketsheds by index
@@ -263,8 +302,23 @@ def generate_market_sheds(inR, inH, out_file='', verbose=True, factor=1000, band
         https://stackoverflow.com/questions/62135639/mcp-geometrics-for-calculating-marketsheds
         https://gist.github.com/bpstewar/9c15fc0948e82aa9667f1b04fd2c0295
     '''
-    xx = inR.read()[bandIdx,:,:] * factor
+    
+    if rCleaner == 'YES':
+        x = raster_cleaner(inR)# Read the raster after raster cleaning.
+    else:
+        x = inR.read()[bandIdx,:,:]# Read the raster as it is.
+            
+    xx = x * factor
+    
+    
+    meta = inR.meta.copy()
+    meta['nodata'] = 999999
+    # Getting the meta data of the input raster file.
+    # This replacement is to avoid an error when the nodata value has the datatype other than int32.
+    # Practically, this won't affect both the original raster and the output raster.
+    
     orig_shape = xx.shape
+    
     # In order to calculate the marketsheds, the input array needs to be NxN shape, 
     #   at the end, we will select out the original shape in order to write to file
     max_speed = xx.max()
@@ -273,7 +327,7 @@ def generate_market_sheds(inR, inH, out_file='', verbose=True, factor=1000, band
         new_xx = np.vstack([xx, extra_size])
         
     if xx.shape[1] < xx.shape[0]:
-        extra_size = np.zeros([(xx.shape[0] - xx.shape[1]), xx.shape[0]]) + max_speed
+        extra_size = np.zeros([xx.shape[0], (xx.shape[0] - xx.shape[1])]) + max_speed
         new_xx = np.hstack([xx, extra_size])        
     mcp = graph.MCP_Geometric(new_xx)
     
@@ -298,8 +352,8 @@ def generate_market_sheds(inR, inH, out_file='', verbose=True, factor=1000, band
     n, components = sparse.csgraph.connected_components(g)
     basins = components.reshape(costs.shape)
     out_basins = basins[:orig_shape[0], :orig_shape[1]]
+    
     if out_file != '':
-        meta = inR.meta.copy()
         meta.update(dtype=out_basins.dtype)
         with rasterio.open(out_file, 'w', **meta) as out_raster:
             out_raster.write_band(1, out_basins)
