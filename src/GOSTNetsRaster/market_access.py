@@ -25,6 +25,7 @@ from shapely.ops import cascaded_union
 from scipy import sparse
 from scipy.ndimage import generic_filter
 from pandana.loaders import osm
+from numpy import inf        
 
 speed_dict = {
    'residential': 20,  # kmph
@@ -316,16 +317,19 @@ def generate_market_sheds_old(img, mcp, inH, out_file = '', verbose=True):
             outR.write_band(1, output)
     return(output)
     
-def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file='', thresholds=[30,60,120,180,240]):
+def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file='', calc_thresh=True, calc_weighted=True, thresholds=[30,60,120,180,240]):
     ''' Summarize the population according to travel time within a set of thresholds
     
     Args:
-        popR:   rasterio object describing the population data
-        dests:  geopandas.GeoDataFrame describing the destinations for the travel time calculation
-        ttR:    rasterio obejct describing the travel time raster
-        mcp:    skimage.graph object created from ttR
-        zonalD: geopandas.GeoDataFrane of zones for summarizing population
-        thresholds: Optional; travel times at which to summarize population
+        popR:          rasterio object describing the population data
+        dests:         geopandas.GeoDataFrame describing the destinations for the travel time calculation
+        ttR:           rasterio obejct describing the travel time raster
+        mcp:           skimage.graph object created from ttR
+        zonalD:        geopandas.GeoDataFrane of zones for summarizing population
+        out_tt_file:   Optional; path to geotiff to output travle time results
+        calc_thresh:   Optional; calculate population within travel time thresholds
+        calc_weighted: Optional; calculate population weighted travel time
+        thresholds:    Optional; travel times at which to summarize population
     Returns:
         A geopandas.GeoDataFrame with extra columns describing the population within traveltime thresholds
     '''
@@ -343,8 +347,7 @@ def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file
     
     res = rMisc.zonalStats(zonalD, popR, minVal=0)
     res = pd.DataFrame(res, columns=['SUM','MIN','MAX','MEAN'])
-    zonalD[f'total_pop'] = res['SUM']
-    
+    zonalD[f'total_pop'] = res['SUM']    
     
     # calculate travel time to destinations
     ttD, traceback = calculate_travel_time(ttR, mcp, dests)   
@@ -352,14 +355,33 @@ def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file
         ttD = ttD.astype(ttR.meta['dtype'])
         with rasterio.open(out_tt_file, 'w', **ttR.meta) as outR:
             outR.write_band(1, ttD)
-        
-    for thresh in thresholds:
-        cur_ttD = ttD <= thresh
-        cur_popD = popD * cur_ttD        
-        with rMisc.create_rasterio_inmemory(popR.profile, cur_popD) as cur_popR:
-            res = rMisc.zonalStats(zonalD, cur_popR, minVal=0)
-            res = pd.DataFrame(res, columns=['SUM','MIN','MAX','MEAN'])
-            zonalD[f'pop_{thresh}'] = res['SUM']
+    
+    # Calculate population within thresholds    
+    if calc_thresh:
+        for thresh in thresholds:
+            cur_ttD = ttD <= thresh
+            cur_popD = popD * cur_ttD        
+            with rMisc.create_rasterio_inmemory(popR.profile, cur_popD) as cur_popR:
+                res = rMisc.zonalStats(zonalD, cur_popR, minVal=0)
+                res = pd.DataFrame(res, columns=['SUM','MIN','MAX','MEAN'])
+                zonalD[f'pop_{thresh}'] = res['SUM']
+            
+    # Calculate population weighted travel time
+    if calc_weighted:
+        # Calculate total population in each zone
+        with rMisc.create_rasterio_inmemory(popR.profile, popD) as temp_popR:
+            pop_res = rMisc.zonalStats(zonalD, temp_popR, minVal=0)
+            pop_res = pd.DataFrame(pop_res, columns=['SUM','MIN','MAX','MEAN'])
+            zonalD['total_pop'] = pop_res['SUM']
+        # combine travel time and population
+        tt_pop = ttD * popD
+        tt_pop = np.nan_to_num(tt_pop)
+        #return(tt_pop)
+        with rMisc.create_rasterio_inmemory(popR.profile, tt_pop) as temp_ttPopR:
+            pop_res = rMisc.zonalStats(zonalD, temp_ttPopR, minVal=0, maxVal=1000000000)
+            pop_res = pd.DataFrame(pop_res, columns=['SUM','MIN','MAX','MEAN'])
+            zonalD['tt_pop_w'] = pop_res['SUM']            
+        zonalD['tt_pop_w'] = zonalD.apply(lambda x: x['tt_pop_w']/x['total_pop'], axis=1)
             
     return(zonalD)
         
