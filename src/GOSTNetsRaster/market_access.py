@@ -165,7 +165,7 @@ def get_all_amenities(bounds):
     shops = get_nodes(inH.bounds, shp_tags)
     
     
-def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx, verbose=True):
+def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx='tempID', verbose=True):
     ''' Generate individual market sheds for each feature in the input dataset
     
     INPUTS
