@@ -16,7 +16,7 @@ osm_speed_dict = {
 }
 
 copernicus_landcover = {
-    0:,
+    0:0.1,
     111: 3.24,
     113: 3.24,
     112: 1.62,

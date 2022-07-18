@@ -3,8 +3,6 @@
 TBD description
 
 """
-
-
 import sys, os, importlib, time, copy
 import rasterio
 
@@ -25,7 +23,9 @@ from shapely.ops import cascaded_union
 from scipy import sparse
 from scipy.ndimage import generic_filter
 from pandana.loaders import osm
-from numpy import inf        
+from numpy import inf      
+
+from . import conversion_tables as speed_tables
 
 speed_dict = {
    'residential': 20,  # kmph
@@ -104,10 +104,58 @@ def name_mcp_dests(inH, destinations):
         x = row['geometry']
         destinations.loc[idx, 'MCP_DESTS_NAME'] = "_".join([str(xx) for xx in inH.index(x.x, x.y)])    
     return(destinations)
+
+def generate_roads_lc_friction(lc_file, sel_roads, lc_travel_table=None, min_lc_val=0.01, min_road_speed=0.01, speed_col='speed', resolution=100, out_file = ''):
+    ''' Combine a landcover dataset and a road network dataset to create
+        a friction surface. See generate_lc_friction and generate_road_friction for more details
+        
+        Returns
+        dictionary of 'meta'[dictionary] and 'friction'[numpy array] - meta is metadata required to write rasterio
+            friction is the resulting friction surface used to run in GOSTNets Raster
+    '''
+    if not lc_travel_table:
+        lc_travel_table = speed_tables.copernicus_landcover
+    lc_friction = generate_lc_friction(lc_file, lc_travel_table = lc_travel_table, min_val = min_lc_val, resolution = resolution)
+    road_friction = generate_network_raster(lc_file, sel_roads, min_speed=min_road_speed, speed_col=speed_col, resolution=resolution)
     
+    #Stack frictions and find minimum
+    stacked_friction = np.dstack([road_friction, lc_friction[0,:,:]])    
+    combo_friction = np.amin(stacked_friction, axis=2)
+    combo_friction[combo_friction == inf] = 65000
     
-def generate_network_raster(inH, sel_roads, min_speed=5, speed_col='speed', resolution=100):   
-    ''' Create raster with network travel times from a road network
+    out_meta = lc_file.meta.copy()
+    combo_friction = combo_friction.astype('uint16')
+    out_meta['dtype'] = combo_friction.dtype
+    
+    if out_file != '':
+        with rasterio.open(out_file, 'w', **out_meta) as outR:
+            outR.write_band(1, combo_friction)
+    return({'meta': out_meta, 'friction': combo_friction})
+        
+
+def generate_lc_friction(lc_file, lc_travel_table=None, min_val=0.01, resolution=100):
+    ''' Convert a landcover dataset to a friction surface based on a table
+    
+    Inputs
+        lc_file [rasterio] - landcover file
+        [optional] lc_travel_table [dictionary] - dictionary of travel speeds per lc class in km/h; defaults
+            to conversion_tables.copernicus_landcover
+        [optional] min_val [float] - minimum speed for lc dataset
+    
+    Returns
+        [numpy array] - friction surface describing travel speed per landcover class
+    '''
+    if not lc_travel_table:
+        lc_travel_table = speed_tables.copernicus_landcover
+    lc_data = lc_file.read()
+    res = np.vectorize(lc_travel_table.get)(lc_data)
+    res = res.astype(float)
+    res = np.nan_to_num(res, nan=0.01)
+    res = resolution / (res * 1000 / (60 * 60)) # km/h --> m/s * resolution of image in metres
+    return(res)
+    
+def generate_road_friction(inH, sel_roads, min_speed=0.01, speed_col='speed', resolution=100):   
+    ''' Create raster with network travel times from a road network that measures seconds to cross a cell
     
     INPUTS
         inH [rasterio object] - template raster used to define raster shape, resolution, crs, etc.
