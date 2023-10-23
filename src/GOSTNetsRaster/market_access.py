@@ -325,12 +325,11 @@ def generate_market_sheds(inR, inH, out_file='', verbose=True, factor=1000, band
         new_xx = np.vstack([xx, extra_size])
         
     if xx.shape[1] < xx.shape[0]:
-        extra_size = np.zeros([(xx.shape[0] - xx.shape[1]), xx.shape[0]]) + max_speed
+        extra_size = np.zeros([xx.shape[0], (xx.shape[0] - xx.shape[1])]) + max_speed
         new_xx = np.hstack([xx, extra_size])        
-    mcp = graph.MCP_Geometric(new_xx)
+    mcp = graph.MCP_Geometric(xx)
     
-    
-    dests = get_mcp_dests(inR, inH)
+    dests = get_mcp_dests(inR, inH, makeset=False)
     if column_id:
         destinations_ids = list(inH[column_id])
     costs, traceback = mcp.find_costs(dests)
@@ -358,16 +357,16 @@ def generate_market_sheds(inR, inH, out_file='', verbose=True, factor=1000, band
         for dest_coords in dests:
             dest_id = neighbor_ids[dest_coords[0], dest_coords[1]]
             dest_idx.append(dest_id)
-        dest_idx_sorted = dest_idx.copy()
-        dest_idx_sorted.sort()
+        
         basins_reclass = basins.copy()
-        for i, idx in enumerate(dest_idx_sorted):
+        for i, dest in enumerate(dests):
+            basins_value = basins[dest[0], dest[1]]
             if column_id:
-                # print(f"Reclassify {i} to {destinations_ids[dest_idx.index(idx)]}")
-                basins_reclass[basins==i] = destinations_ids[dest_idx.index(idx)]
+                basins_reclass[basins==basins_value] = destinations_ids[i]
             else:
-                # print(f"Reclassify {i} to {dest_idx.index(idx)}")
-                basins_reclass[basins==i] = dest_idx.index(idx)
+                basins_reclass[basins==basins_value] = i
+            # print(f"Reclassify {basins_value} to {i}
+        
         basins = basins_reclass.copy()
     
     out_basins = basins[:orig_shape[0], :orig_shape[1]]
