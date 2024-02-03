@@ -1,6 +1,46 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
-]
+requires = ["setuptools>=64.0", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "GOSTNetsRaster"
+dynamic = ["version"]
+description = 'Generate travel time rasters from friction surfaces'
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE" }
+authors = [{ name = "World Bank", email = "github@worldbank.org" }]
+maintainers = [
+	{ name = "Benjamin P. Stewart", email = "bstewart@worldbankgroup.org" }
+]
+classifiers = [
+	"Programming Language :: Python :: 3 :: Only",
+	"Development Status :: 3 - Alpha",
+	"Intended Audience :: Developers",
+	"Operating System :: OS Independent",
+]
+requires-python = ">=3"
+dependencies = [
+    'rasterio',
+    'geopandas',
+    'pandas',
+    'numpy',
+    'osmnx',
+    'GOSTNets',
+    'scikit-image',
+    'pyproj',
+    'GOSTRocks',
+    'scipy',
+    'pandana'
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "GOSTNetsRaster[docs]"]
+docs = ["docutils==0.17.1", "jupyter-book>=1,<2"]
+
+[project.urls]
+"Homepage" = "https://github.com/worldbank/GOSTNets_Raster"
+"Bug Reports" = "https://github.com/worldbank/GOSTNets_Raster/issues"
+"Source" = "https://github.com/worldbank/GOSTNets_Raster"
+
+[tool.setuptools_scm]
+write_to = "src/GOSTNetsRaster/_version.py"
