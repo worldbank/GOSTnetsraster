@@ -18,7 +18,7 @@ classifiers = [
 	"Intended Audience :: Developers",
 	"Operating System :: OS Independent",
 ]
-requires-python = ">=3"
+requires-python = ">=3.9"
 dependencies = [
     'rasterio',
     'geopandas',
@@ -43,4 +43,4 @@ docs = ["docutils==0.17.1", "jupyter-book>=1,<2"]
 "Source" = "https://github.com/worldbank/GOSTNets_Raster"
 
 [tool.setuptools_scm]
-write_to = "src/GOSTNetsRaster/_version.py"
+write_to = "src/GOSTnetsraster/_version.py"
