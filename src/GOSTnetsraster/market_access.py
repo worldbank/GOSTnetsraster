@@ -12,7 +12,7 @@ import geopandas as gpd
 import osmnx as ox
 import GOSTnets as gn
 import skimage.graph as graph
-import GOSTRocks.rasterMisc as rMisc
+import GOSTrocks.rasterMisc as rMisc
 
 from skimage.graph import _mcp
 from rasterio.mask import mask
@@ -105,7 +105,9 @@ def name_mcp_dests(inH, destinations):
         destinations.loc[idx, 'MCP_DESTS_NAME'] = "_".join([str(xx) for xx in inH.index(x.x, x.y)])    
     return(destinations)
 
-def generate_roads_lc_friction(lc_file, sel_roads, lc_travel_table=None, min_lc_val=0.01, min_road_speed=0.01, speed_col='speed', resolution=100, out_file = ''):
+def generate_roads_lc_friction(lc_file, sel_roads, lc_travel_table=None, min_lc_val=0.01, 
+                               min_road_speed=0.01, speed_col='speed', 
+                               resolution=100, out_file = ''):
     ''' Combine a landcover dataset and a road network dataset to create
         a friction surface. See generate_lc_friction and generate_road_friction for more details
         
@@ -116,17 +118,17 @@ def generate_roads_lc_friction(lc_file, sel_roads, lc_travel_table=None, min_lc_
     if not lc_travel_table:
         lc_travel_table = speed_tables.copernicus_landcover
     lc_friction = generate_lc_friction(lc_file, lc_travel_table = lc_travel_table, min_val = min_lc_val, resolution = resolution)
-    road_friction = generate_network_raster(lc_file, sel_roads, min_speed=min_road_speed, speed_col=speed_col, resolution=resolution)
+    road_friction = generate_road_friction(lc_file, sel_roads, no_road_speed=min_road_speed, speed_col=speed_col, resolution=resolution)
     
     #Stack frictions and find minimum
     stacked_friction = np.dstack([road_friction, lc_friction[0,:,:]])    
     combo_friction = np.amin(stacked_friction, axis=2)
-    combo_friction[combo_friction == inf] = 65000
+    combo_friction[combo_friction == inf] = None
+    combo_friction = combo_friction.astype('float')
     
     out_meta = lc_file.meta.copy()
-    combo_friction = combo_friction.astype('uint16')
-    out_meta['dtype'] = combo_friction.dtype
-    
+    out_meta.update(dtype=combo_friction.dtype)
+
     if out_file != '':
         with rasterio.open(out_file, 'w', **out_meta) as outR:
             outR.write_band(1, combo_friction)
@@ -150,32 +152,30 @@ def generate_lc_friction(lc_file, lc_travel_table=None, min_val=0.01, resolution
     lc_data = lc_file.read()
     res = np.vectorize(lc_travel_table.get)(lc_data)
     res = res.astype(float)
-    res = np.nan_to_num(res, nan=0.01)
-    res = resolution / (res * 1000 / (60 * 60)) # km/h --> m/s * resolution of image in metres
+    res = np.nan_to_num(res, nan=min_val)
+    res = 1/((res * 1000)/60) # km/h --> m/min --> minutes/m
     return(res)
     
-def generate_road_friction(inH, sel_roads, min_speed=0.01, speed_col='speed', resolution=100):   
+def generate_road_friction(inH, sel_roads, no_road_speed=0.01, speed_col='speed', resolution=100):   
     ''' Create raster with network travel times from a road network that measures seconds to cross a cell
     
     INPUTS
         inH [rasterio object] - template raster used to define raster shape, resolution, crs, etc.
         sel_roads [geopandas dataframe] - road network to burn into raster
-        [optional] min_speed [int] - minimum travel speed for areas without roads
+        [optional] no_road_speed [int] - minimum travel speed for areas without roads
         [optional] speed_col [string] - column in sel_roads that defines the speed in KM/h
         [optional] resolution [int] - resolution of the raster in metres
         
     RETURNS
         [numpy array]
     '''
-    # create a copy of inH with value set to slowest walking speed
-    distance_data = np.zeros(inH.shape)
     # burn the speeds into the distance_data using the road network 
     sel_roads = sel_roads.sort_values([speed_col])
     shapes = ((row['geometry'], row[speed_col]) for idx, row in sel_roads.iterrows())
-    speed_image = features.rasterize(shapes, out_shape=inH.shape, transform=inH.transform, fill=min_speed)
+    res = features.rasterize(shapes, out_shape=inH.shape, transform=inH.transform, fill=no_road_speed)
     # convert to a version that claculates the seconds to cross each cell
-    traversal_time = resolution / (speed_image * 1000 / (60 * 60)) # km/h --> m/s * resolution of image in metres
-    return(traversal_time)
+    res = 1/((res * 1000)/60) # km/h --> m/min --> minutes/m
+    return(res)
    
 def calculate_travel_time(inH, mcp, destinations, out_raster = ''):
     ''' Calculate travel time raster
@@ -272,10 +272,10 @@ def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx='tempID', v
                 gs = gpd.GeoSeries()#Create an empty GeoSeries.
             
                 for x in all_shapes:
-                	gsTemp = gpd.GeoSeries(x)
-                	gs = gs.append(gsTemp)
-            
-                gs = gs.reset_index(drop=True)#Reset the index of 'gs'
+                    gsTemp = gpd.GeoSeries(x)
+                    gs = gs.append(gsTemp)
+
+                gs = gs.reset_index(drop=True)  # Reset the index of 'gs'
             
         
             	# Geometry validity check and correction
@@ -290,7 +290,7 @@ def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx='tempID', v
                 # This code block can be omitted if it's redundant.
                 for i, geom in enumerate(gs):
                 	print('Geometry No. {}: Validity = {} | THS = {} minutes | Poly Count = {}'.format(i, geom.is_valid, thresh, polyCount))
-
+                
                 union = gs.unary_union
                 complete_shapes.append([union, thresh, row[featIdx]])
 				
