@@ -1,0 +1,9 @@
+rasterio
+geopandas
+pandas
+numpy
+osmnx>1.3.0
+scikit-image
+pyproj
+scipy
+pandana
