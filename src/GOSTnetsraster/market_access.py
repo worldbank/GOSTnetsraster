@@ -3,7 +3,7 @@
 TBD description
 
 """
-import sys, os, importlib, time, copy
+import time, copy
 import rasterio
 
 import numpy as np
@@ -202,15 +202,21 @@ def calculate_travel_time(inH, mcp, destinations, out_raster = ''):
 def get_all_amenities(bounds):
     amenities = ['toilets', 'washroom', 'restroom']
     toilets_tags = '"amenity"~"{}"'.format('|'.join(amenities))
-    toilets = get_nodes(inH.bounds, toilets_tags)
+    toilets = get_nodes(bounds, toilets_tags)
 
     amenities = ['water_points', 'drinking_water', 'pumps', 'water_pumps', 'well']
     water_tags = '"amenity"~"{}"'.format('|'.join(amenities))
-    water_points = get_nodes(inH.bounds, water_tags)
+    water_points = get_nodes(bounds, water_tags)
         
     amenities = ['supermarket', 'convenience', 'general', 'department_stores', 'wholesale', 'grocery', 'general']
     shp_tags = '"shop"~"{}"'.format('|'.join(amenities))
-    shops = get_nodes(inH.bounds, shp_tags)
+    shops = get_nodes(bounds, shp_tags)
+
+    return({
+        'toilets': toilets,
+        'water_points': water_points,
+        'shops': shops
+    })
     
     
 def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx='tempID', verbose=True):
@@ -266,32 +272,13 @@ def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx='tempID', v
                 for poly, value in features.shapes(within_time, mask = within_time_mask, transform = network_r.transform):
                 # The 3rd iteration loop for retriving a pair of polygon and value for each feature found in the raster image.
                     polyCount += 1
-                    all_shapes.append([shape(poly)])
-
-                # Convert 'all_shapes' list to 'gs' GeoSeries.
-                gs = gpd.GeoSeries()#Create an empty GeoSeries.
-            
-                for x in all_shapes:
-                    gsTemp = gpd.GeoSeries(x)
-                    gs = gs.append(gsTemp)
-
-                gs = gs.reset_index(drop=True)  # Reset the index of 'gs'
-            
-        
-            	# Geometry validity check and correction
-                for i, geom in enumerate(gs):
-                    geomCheck = geom.is_valid
-                    if geomCheck == False:
-                        gs[i] = geom.buffer(0)
-                    	# Conventional way to correct invalid geometry.
-                    	# Not sure how this create difference b/w the non-corrected and the corrected.
-            
-            	# Geometry validity double-check (inform the result to the user)
-                # This code block can be omitted if it's redundant.
-                for i, geom in enumerate(gs):
-                	print('Geometry No. {}: Validity = {} | THS = {} minutes | Poly Count = {}'.format(i, geom.is_valid, thresh, polyCount))
+                    all_shapes.append(shape(poly))
                 
-                union = gs.unary_union
+                shape_df = pd.DataFrame([list(range(len(all_shapes))), all_shapes]).T
+                shape_df.columns = ['ID', 'geometry']
+                shape_df = gpd.GeoDataFrame(shape_df, geometry='geometry', crs=network_r.crs)
+                    
+                union = shape_df.unary_union
                 complete_shapes.append([union, thresh, row[featIdx]])
 				
     final = gpd.GeoDataFrame(complete_shapes, columns=["geometry", "threshold", "IDX"], crs=network_r.crs)
@@ -505,9 +492,71 @@ def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file
         zonalD['tt_pop_w'] = zonalD.apply(lambda x: x['tt_pop_w']/x['total_pop'], axis=1)
             
     return(zonalD)
-        
-        
-        
-        
-        
-        
+
+def calculate_gravity(inH, mcp, dests, gravity_col, outfile='', decayVals=[
+        0.01,
+        0.005,
+        0.001,
+        0.0007701635,  # Market access halves every 15 mins
+        0.0003850818,  # Market access halves every 30 mins
+        0.0001925409,  # Market access halves every 60 mins
+        0.0000962704,  # Market access halves every 120 mins
+        0.0000385082,  # Market access halves every 300 mins
+        0.00001,
+    ]):
+    """ Using a friction surface, run a gravity model to evaluate access to all cities
+
+    Parameters
+    ----------
+    inH : rasterio object
+        rasterio object of friction surface
+    mcp : skimage.graph.MCP_Geometric
+        graph used to calculate travel times; must match shape of inH
+    dests : geopandas dataframe
+        Destination coordinates for gravity model, must be in same CRS as inH
+    gravity_col : string
+        column in dests that describes the attractiveness of the destination
+    outfile : string, optional
+        Path to save the gravity model output. Defaults to '' which writes nothing
+    decayVals : list, optional
+        List of decay values for market access. Defaults to a predefined list.
+
+    Returns
+    -------
+    final_gravity : numpy array
+        3D array of gravity model results, with the third dimension corresponding to decay values
+    """
+    ### ToDo: Add in a check to ensure that the CRS of inH and dests match
+    def decayFunction(x, decay):
+        return np.exp(-1 * decay * x)
+
+    for idx, row in dests.iterrows():
+        # for each destination, calculate travel time
+        cur_costs, cur_traceback = calculate_travel_time(inH, mcp, gpd.GeoDataFrame([row], geometry='geometry', crs=dests.crs))
+        try:
+            costs = np.dstack([costs, cur_costs])
+        except:
+            # if this is the first destination, create a new array
+            costs = cur_costs
+    
+    # Iterate through stack of calculations and calculate gravity
+    gravity_idx = 0
+    for decay in decayVals:
+        gravity_idx += 1
+        cur_gravity = np.zeros([costs.shape[0], costs.shape[1]])
+        for row in range(costs.shape[0]):
+            for col in range(costs.shape[1]):
+                cur_gravity[row, col] = np.sum(decayFunction(costs[row, col, :], decay) * dests[gravity_col].values)
+        try:
+            final_gravity = np.dstack([final_gravity, cur_gravity])
+        except:
+            final_gravity = cur_gravity
+
+    if outfile != '':
+        out_meta = inH.meta.copy()
+        out_meta.update(dtype=final_gravity.dtype, count=final_gravity.shape[2])
+        with rasterio.open(outfile, 'w', **out_meta) as outR:
+            for band_idx in range(final_gravity.shape[2]):
+                outR.write_band(band_idx + 1, final_gravity[:, :, band_idx])
+
+    return final_gravity
