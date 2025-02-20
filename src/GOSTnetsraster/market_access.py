@@ -529,16 +529,13 @@ def calculate_gravity(inH, mcp, dests, gravity_col, outfile='', decayVals=[
     ### ToDo: Add in a check to ensure that the CRS of inH and dests match
     def decayFunction(x, decay):
         return np.exp(-1 * decay * x)
-
+    all_costs = []
     for idx, row in dests.iterrows():
         # for each destination, calculate travel time
         cur_costs, cur_traceback = calculate_travel_time(inH, mcp, gpd.GeoDataFrame([row], geometry='geometry', crs=dests.crs))
-        try:
-            costs = np.dstack([costs, cur_costs])
-        except:
-            # if this is the first destination, create a new array
-            costs = cur_costs
-    
+        all_costs.append(cur_costs.copy())
+    costs = np.dstack(all_costs)
+
     # Iterate through stack of calculations and calculate gravity
     gravity_idx = 0
     for decay in decayVals:
@@ -554,9 +551,17 @@ def calculate_gravity(inH, mcp, dests, gravity_col, outfile='', decayVals=[
 
     if outfile != '':
         out_meta = inH.meta.copy()
-        out_meta.update(dtype=final_gravity.dtype, count=final_gravity.shape[2])
-        with rasterio.open(outfile, 'w', **out_meta) as outR:
-            for band_idx in range(final_gravity.shape[2]):
-                outR.write_band(band_idx + 1, final_gravity[:, :, band_idx])
+        try:
+            out_meta.update(dtype=final_gravity.dtype, count=final_gravity.shape[2])
+            with rasterio.open(outfile, 'w', **out_meta) as outR:
+                for band_idx in range(final_gravity.shape[2]):
+                    outR.write_band(band_idx + 1, final_gravity[:, :, band_idx])    
+        except:
+            with rasterio.open(outfile, 'w', **out_meta) as outR:
+                outR.write_band(1, final_gravity)
 
-    return final_gravity
+    return {
+            'costs':costs, 
+            'gravity':final_gravity
+            }
+   
