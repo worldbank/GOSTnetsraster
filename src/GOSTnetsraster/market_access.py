@@ -22,7 +22,6 @@ from shapely.wkt import loads
 from shapely.ops import cascaded_union
 from scipy import sparse
 from scipy.ndimage import generic_filter
-from pandana.loaders import osm
 from numpy import inf      
 
 from . import conversion_tables as speed_tables

@@ -8,11 +8,13 @@ Instructions on use are best found in the Notebooks folder, where jupyter notebo
 The following instructions have been helpful for installing in a conda environment on a windows machine, so your results may very. These are also specific to our organizational security environment.
 
 ```
-C:\> conda create --name gnr geopandas ipykernel git pandana
+C:\> conda create --name gnr python=3.12
 
 C:\> conda activate gnr
 
-[gnr] C:\Path_to_code\> pip install . -e
+[gnr] pip install geopandas ipykernel
 
-[gnr] C:\Path_to_code\> jupyter-notebook
+[gnr] C:\Path_to_GOSTnetsraster code\> pip install . -e
+
+[gnr] C:\Path_to_GOSTnetsraster code\> jupyter-notebook
 ```
