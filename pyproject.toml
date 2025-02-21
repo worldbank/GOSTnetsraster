@@ -29,8 +29,7 @@ dependencies = [
     'scikit-image',
     'pyproj',
     'GOSTRocks',
-    'scipy',
-    'pandana'
+    'scipy'
 ]
 
 [project.optional-dependencies]
