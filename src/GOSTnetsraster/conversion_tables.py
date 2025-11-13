@@ -1,3 +1,24 @@
+# Highway features are reclassified to 4 OSMLR classes for simplification and standardization
+#   https://mapzen.com/blog/osmlr-2nd-technical-preview/
+OSMLR_Classes = {
+    "motorway": "OSMLR level 1",
+    "motorway_link": "OSMLR level 1",
+    "trunk": "OSMLR level 1",
+    "trunk_link": "OSMLR level 1",
+    "primary": "OSMLR level 1",
+    "primary_link": "OSMLR level 1",
+    "secondary": "OSMLR level 2",
+    "secondary_link": "OSMLR level 2",
+    "tertiary": "OSMLR level 2",
+    "tertiary_link": "OSMLR level 2",
+    "unclassified": "OSMLR level 3",
+    "unclassified_link": "OSMLR level 3",
+    "residential": "OSMLR level 3",
+    "residential_link": "OSMLR level 3",
+    "track": "OSMLR level 4",
+    "service": "OSMLR level 4",
+}
+
 osm_speed_dict = {
    'residential': 20,  # kmph
    'primary': 40,
