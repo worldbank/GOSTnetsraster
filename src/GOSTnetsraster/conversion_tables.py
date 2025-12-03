@@ -35,6 +35,25 @@ osm_speed_dict = {
    'living_street':10,
    'service':10
 }
+modis_umd ={ #https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MCD12Q1#bands
+        0: 0.50, #Water Bodies: at least 60% of area is covered by permanent water bodies
+        1: 3.0, #05450a Evergreen Needleleaf Forests: dominated by evergreen conifer trees (canopy >2m). Tree cover >60%.
+        2: 4.0, #086a10 Evergreen Broadleaf Forests: dominated by evergreen broadleaf and palmate trees (canopy >2m). Tree cover >60%.
+        3: 3.0, #54a708 Deciduous Needleleaf Forests: dominated by deciduous needleleaf (larch) trees (canopy >2m). Tree cover >60%.
+        4: 4.0, #78d203 Deciduous Broadleaf Forests: dominated by deciduous broadleaf trees (canopy >2m). Tree cover >60%.
+        5: 3.5, #009900 Mixed Forests: dominated by neither deciduous nor evergreen (40-60% of each) tree type (canopy >2m). Tree cover >60%.
+        6: 3.50, #c6b044 Closed Shrublands: dominated by woody perennials (1-2m height) >60% cover.
+        7: 4.20, #dcd159 Open Shrublands: dominated by woody perennials (1-2m height) 10-60% cover.
+        8: 3.50, #dade48 Woody Savannas: tree cover 30-60% (canopy >2m).
+        9: 4.20, #fbff13 Savannas: tree cover 10-30% (canopy >2m).
+        10: 4.20, #b6ff05	Grasslands: dominated by herbaceous annuals (<2m).
+        11: 1.50, #27ff87	Permanent Wetlands: permanently inundated lands with 30-60% water cover and >10% vegetated cover.
+        12: 4.0, #c24f44	Cropland.
+        13: 5.0, #a5a5a5	Urban and Built-up Lands: at least 30% impervious surface area including building materials, asphalt and vehicles.
+        14: 4.20, #ff6d4c	Cropland/Natural Vegetation Mosaics: mosaics of small-scale cultivation 40-60% with natural tree, shrub, or herbaceous vegetation.
+        15: 4.50, #f9ffa4	Non-Vegetated Lands: at least 60% of area is non-vegetated barren (sand, rock, soil) or permanent snow and ice with less than 10% vegetation.
+    }
+
 esaacci_landcover = {
     0: 0.1,  #No data
     10: 2.50, #Cropland, rainfed
