@@ -178,16 +178,18 @@ def generate_road_friction(inH, sel_roads, no_road_speed=0.01, speed_col='speed'
     return(res)
    
 def calculate_travel_time(inH, mcp, destinations, out_raster = ''):
-    ''' Calculate travel time raster
-    
+    ''' Calculate travel time from all cells to the set of destinations using an MCP graph
+
     INPUTS
-        inH [rasterio object] - template raster used to identify locations of destinations
+        inH [rasterio] - raster from which to grab index for calculations in MCP
         mcp [skimage.graph.MCP_Geometric] - input graph
-        destinations [geopandas df] - destinations for nearest calculations
-        
-    LINKS
-        https://scikit-image.org/docs/0.7.0/api/skimage.graph.mcp.html#skimage.graph.mcp.MCP.find_costs
+        destinations [geopandas data frame] - geopandas data frame of destinations
+        out_raster [string] - optional path to write travel time raster
+    RETURNS
+        (costs [numpy array], traceback [numpy array])
     '''
+    
+    
     # create skimage graph
     cities = get_mcp_dests(inH, destinations)
     costs, traceback = mcp.find_costs(cities)        

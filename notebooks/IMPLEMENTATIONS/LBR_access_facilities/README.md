@@ -1,9 +1,31 @@
-# GEO Road Improvements Market Access Analysis
-This analysis evaluates the impact of road improvements in Georgia on travel time to ports and border crossings.             It compares pre- and post-intervention travel times using friction surfaces and summarizes the results at the administrative level 2 (ADM2) regions.
-             
-Improved roads were identified from OSM data and digitized where necessary; roads were attributed with improvement status from a map provided by the project team.             Friction surfaces were generated using ESA CCI landcover data and road speed information.             Travel times to the nearest ports and border crossings were calculated using the MCP algorithm, weighted by population from WorldPop data.
-![Road status and destinations map](maps/GEO_road_status_destinations.png)
-## Calculating Travel Time and Improvements
-Travel times to ports and border crossings were calculated using both pre- and post-intervention friction surfaces.             __all roads of any status were included in the calculations__ and all speeds were increased by 20% to account for improved conditions.             The results were summarized at the ADM2 level, providing insights into how road improvements have affected accessibility in different regions.
-![Travel time to ports map](maps/GEO_tt_ports.png)
-![Change in travel time to ports at ADM2 level](maps/GEO_tt_ports_ADM2_change.png)
+# Liberia ID centre travel time analysis
+This analysis evaluates travel time to existing and proposed ID centers in Liberia.
+<img src='maps/LBR_existing_and_proposed_service_centers.png' alt='Map of primary roads and service centers' width='600'/>
+
+This was done using friction surface analysis to measure travel time to service centers, and map marketsheds for service centers
+The following analysis were undertaken to quantify accessibility to ID centers in Liberia:
+| Question | Output file |
+|---|---|
+| How many people are within 60 mins and 120 mins drive time to existing ID centers, summarized at ADM1 and ADM2 levels? | ADM2_tt_existing_ID.csv |
+| How many exclusive users are within 120 mins drive time to existing ID centers (Marketsheds)? | Marketshed_population_existing_ID.csv |
+| What is the population outside 120 min drive time of existing centers (unserved population)? | ADM2_tt_existing_ID.csv |
+| How many people are within 60, 120 min drive time to proposed centers? | ADM2_tt_proposed_ID.csv |
+| What are the Marketsheds for proposed centers? | Marketshed_population_proposed_ID.csv |
+| How to prioritize proposed centers sequentially to serve the most population with the fewest centers? | Top_100_proposed_ID_sites.gpkg |
+
+## Maps of results
+<img src='maps/LBR_tt_raster_existing_ID.png' alt='Travel time to existing ID centers map' width='600'/>
+
+The friction surface analysis measures travel time to the nearest destination from every location in the country, accounting for road networks and landcover-based travel speeds.
+
+<img src='maps/LBR_tt_vector_existing_ID.png' alt='60 min drive-time existing ID centers' width='600'/>
+
+Drive-time vectors show areas that can reach a service center within a given time threshold. This differs from the above analysis in that             each destination (ID centre) is treated independently, so the drive areas can overlap
+
+<img src='maps/LBR_market_sheds_existing_ID.png' alt='LBR Market Sheds existing ID centers' width='600'/>
+
+Marketsheds show the exclusive service area for each service center, i.e., the area that is closest to a given center compared to all other centers.
+<img src='maps/LBR_proposed_top_100_and_existing_service_centers.png' alt='Map of proposed top 100 sites and existing sites' width='600'/>
+
+The proposed top 100 sites are selected sequentially to maximize the unserved population within 60 mins drive time.
+
