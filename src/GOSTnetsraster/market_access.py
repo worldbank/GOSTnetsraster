@@ -178,16 +178,18 @@ def generate_road_friction(inH, sel_roads, no_road_speed=0.01, speed_col='speed'
     return(res)
    
 def calculate_travel_time(inH, mcp, destinations, out_raster = ''):
-    ''' Calculate travel time raster
-    
+    ''' Calculate travel time from all cells to the set of destinations using an MCP graph
+
     INPUTS
-        inH [rasterio object] - template raster used to identify locations of destinations
+        inH [rasterio] - raster from which to grab index for calculations in MCP
         mcp [skimage.graph.MCP_Geometric] - input graph
-        destinations [geopandas df] - destinations for nearest calculations
-        
-    LINKS
-        https://scikit-image.org/docs/0.7.0/api/skimage.graph.mcp.html#skimage.graph.mcp.MCP.find_costs
+        destinations [geopandas data frame] - geopandas data frame of destinations
+        out_raster [string] - optional path to write travel time raster
+    RETURNS
+        (costs [numpy array], traceback [numpy array])
     '''
+    
+    
     # create skimage graph
     cities = get_mcp_dests(inH, destinations)
     costs, traceback = mcp.find_costs(cities)        
@@ -240,18 +242,11 @@ def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx='tempID', v
     complete_shapes = []
    
     for idx, row in inH.iterrows():
-    # The 1st iteration loop for each target point.
-   
         feat_count = feat_count + 1
-      
         if verbose:
-            tPrint(f"{feat_count} of {n}: {row[featIdx]}")
-            # This is just to genereate a progress message.
-            
+            tPrint(f"{feat_count} of {n}: {row[featIdx]}")       
         cur_idx = network_r.index(row['geometry'].x, row['geometry'].y)  
         # Retrive a xy coordinate of the target point shape from 'geometry' column (at row idx).
-        # And retrive the rc location at the target network raster that is corresponding to the xy cooridnate.
-
         if cur_idx[0] > 0 and cur_idx[1] > 0 and cur_idx[0] < network_r.shape[0] and cur_idx[1] < network_r.shape[1]:
             costs, traceback = mcp.find_costs([cur_idx])
             # Checking the validity of cur_idx (Row x Column) - they must be postive and within the shape of the target raster.
@@ -455,7 +450,7 @@ def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file
     
     res = rMisc.zonalStats(zonalD, popR, minVal=0)
     res = pd.DataFrame(res, columns=['SUM','MIN','MAX','MEAN'])
-    zonalD[f'total_pop'] = res['SUM']    
+    zonalD[f'total_pop'] = res['SUM'].values    
     
     # calculate travel time to destinations
     ttD, traceback = calculate_travel_time(ttR, mcp, dests)   
@@ -472,7 +467,7 @@ def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file
             with rMisc.create_rasterio_inmemory(popR.profile, cur_popD) as cur_popR:
                 res = rMisc.zonalStats(zonalD, cur_popR, minVal=0)
                 res = pd.DataFrame(res, columns=['SUM','MIN','MAX','MEAN'])
-                zonalD[f'pop_{thresh}'] = res['SUM']
+                zonalD[f'pop_{thresh}'] = res['SUM'].values
             
     # Calculate population weighted travel time
     if calc_weighted:
@@ -480,7 +475,7 @@ def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file
         with rMisc.create_rasterio_inmemory(popR.profile, popD) as temp_popR:
             pop_res = rMisc.zonalStats(zonalD, temp_popR, minVal=0)
             pop_res = pd.DataFrame(pop_res, columns=['SUM','MIN','MAX','MEAN'])
-            zonalD['total_pop'] = pop_res['SUM']
+            zonalD['total_pop'] = pop_res['SUM'].values
         # combine travel time and population
         tt_pop = ttD * popD
         tt_pop = np.nan_to_num(tt_pop)
@@ -488,8 +483,15 @@ def summarize_travel_time_populations(popR, ttR, dests, mcp, zonalD, out_tt_file
         with rMisc.create_rasterio_inmemory(popR.profile, tt_pop) as temp_ttPopR:
             pop_res = rMisc.zonalStats(zonalD, temp_ttPopR, minVal=0, maxVal=1000000000)
             pop_res = pd.DataFrame(pop_res, columns=['SUM','MIN','MAX','MEAN'])
-            zonalD['tt_pop_w'] = pop_res['SUM']            
-        zonalD['tt_pop_w'] = zonalD.apply(lambda x: x['tt_pop_w']/x['total_pop'], axis=1)
+            zonalD['tt_pop_w'] = pop_res['SUM'].values
+
+        def get_weighted_tt_pop(zonalD):
+            try:
+                return zonalD['tt_pop_w'] / zonalD['total_pop']
+            except:
+                return 0
+
+        zonalD['tt_pop_w'] = zonalD.apply(lambda x: get_weighted_tt_pop(x), axis=1)
             
     return(zonalD)
 
