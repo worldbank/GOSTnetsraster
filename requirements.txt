@@ -2,8 +2,9 @@ rasterio
 geopandas
 pandas
 numpy
-conda-forge::osmnx>1.3.0
+osmnx>1.3.0
 scikit-image
 pyproj
 scipy
 pandana
+GOSTNets

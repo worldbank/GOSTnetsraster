@@ -19,27 +19,27 @@ classifiers = [
 	"Operating System :: OS Independent",
 ]
 requires-python = ">=3.9"
-dependencies = [
-    'rasterio',
-    'geopandas',
-    'pandas',
-    'numpy',
-    'osmnx',
-    'GOSTNets',
-    'scikit-image',
-    'pyproj',
-    'GOSTRocks',
-    'scipy'
-]
-
-[project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "GOSTNetsRaster[docs]"]
-docs = ["docutils==0.17.1", "jupyter-book>=1,<2"]
 
 [project.urls]
 "Homepage" = "https://github.com/worldbank/GOSTNets_Raster"
 "Bug Reports" = "https://github.com/worldbank/GOSTNets_Raster/issues"
 "Source" = "https://github.com/worldbank/GOSTNets_Raster"
 
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = { file = ["requirements-dev.txt"] }
+
 [tool.setuptools_scm]
-write_to = "src/GOSTnetsraster/_version.py"
+
+[tool.ruff]
+exclude = ["__init__.py"]
+
+[tool.coverage.run]
+omit = [
+	"tests/*",
+	"docs/*",
+	"Tutorials/*",
+	"src/GOSTnets/__init__.py",
+]
