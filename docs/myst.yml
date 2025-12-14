@@ -1,0 +1,22 @@
+version: 1
+project:
+  title: GOSTnets-raster
+  github: worldbank/GOSTnetsraster
+
+  toc:
+    - file: README.md
+    - title: API Docs
+      children:
+        - file: api/market_access.md
+    - title: Tutorials
+      children:
+        - file: TUTORIAL_Friction_Surface.ipynb
+        - file: TUTORIAL_MCP_market_access.ipynb
+
+site:
+  options:
+    favicon: images/favicon.ico
+    logo: images/logo.png
+    folders: true
+  parts:
+    primary_sidebar_footer: primary_sidebar_footer.md
