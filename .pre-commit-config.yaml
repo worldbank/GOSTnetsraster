@@ -35,6 +35,7 @@ repos:
           - id: codespell
             name: codespell
             description: Checks for common misspellings in text files
+            args: ["-L", "inH,Parana,gost"]
             additional_dependencies: [tomli]
     - repo: https://github.com/astral-sh/ruff-pre-commit
       rev: v0.5.7
@@ -42,5 +43,7 @@ repos:
           - id: ruff
             types_or: [python, pyi, jupyter]
             args: [--fix]
+            exclude: ^notebooks/
           - id: ruff-format
             types_or: [python, pyi, jupyter]
+            exclude: ^notebooks/

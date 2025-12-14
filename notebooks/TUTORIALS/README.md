@@ -1,2 +1,3 @@
 # Quantifying travel time and market access with friction surfaces
-Accessibility, travel time, gravity are all common metrics in economic and development projects, this library will walk users through a python library to perform such analyses using friction surfaces. 
+
+Accessibility, travel time, gravity are all common metrics in economic and development projects, this library will walk users through a python library to perform such analyses using friction surfaces.
