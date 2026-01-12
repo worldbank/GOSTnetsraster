@@ -1,11 +1,9 @@
 # Liberia ID centre travel time analysis
-
 This analysis evaluates travel time to existing and proposed ID centers in Liberia.
 <img src='maps/LBR_existing_and_proposed_service_centers.png' alt='Map of primary roads and service centers' width='600'/>
 
 This was done using friction surface analysis to measure travel time to service centers, and map marketsheds for service centers
 The following analysis were undertaken to quantify accessibility to ID centers in Liberia:
-
 | Question | Output file |
 |---|---|
 | How many people are within 60 mins and 120 mins drive time to existing ID centers, summarized at ADM1 and ADM2 levels? | ADM2_tt_existing_ID.csv |
@@ -16,7 +14,6 @@ The following analysis were undertaken to quantify accessibility to ID centers i
 | How to prioritize proposed centers sequentially to serve the most population with the fewest centers? | Top_100_proposed_ID_sites.gpkg |
 
 ## Maps of results
-
 <img src='maps/LBR_tt_raster_existing_ID.png' alt='Travel time to existing ID centers map' width='600'/>
 
 The friction surface analysis measures travel time to the nearest destination from every location in the country, accounting for road networks and landcover-based travel speeds.
@@ -31,3 +28,4 @@ Marketsheds show the exclusive service area for each service center, i.e., the a
 <img src='maps/LBR_proposed_top_100_and_existing_service_centers.png' alt='Map of proposed top 100 sites and existing sites' width='600'/>
 
 The proposed top 100 sites are selected sequentially to maximize the unserved population within 60 mins drive time.
+
