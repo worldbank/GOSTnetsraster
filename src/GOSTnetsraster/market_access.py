@@ -19,10 +19,9 @@ from rasterio.mask import mask
 from rasterio import features
 from shapely.geometry import box, Point, shape
 from shapely.wkt import loads
-from shapely.ops import cascaded_union
 from scipy import sparse
 from scipy.ndimage import generic_filter
-from pandana.loaders import osm
+#from pandana.loaders import osm
 from numpy import inf      
 
 from . import conversion_tables as speed_tables
@@ -60,13 +59,7 @@ def get_speed(x, s_dict):
         else:
             speed=5
     return(speed)
-
-def get_nodes(b, tags):
-    nodes = osm.node_query(b[1], b[0], b[3], b[2], tags=tags)
-    nodes_geom = [Point(x) for x in zip(nodes['lon'], nodes['lat'])]
-    nodes_df = gpd.GeoDataFrame(nodes[['amenity','lat','lon']], geometry=nodes_geom, crs={'init':'epgs:4326'})
-    return(nodes_df)
-    
+   
 def get_roads(b):
     sel_graph = ox.graph_from_bbox(b[3], b[1], b[2], b[0], retain_all=True)
     sel_roads = gn.edge_gdf_from_graph(sel_graph)
@@ -197,27 +190,7 @@ def calculate_travel_time(inH, mcp, destinations, out_raster = ''):
         with rasterio.open(out_raster, 'w', **meta) as out:
             out.write_band(1, costs)
             
-    return((costs, traceback))    
-    
-def get_all_amenities(bounds):
-    amenities = ['toilets', 'washroom', 'restroom']
-    toilets_tags = '"amenity"~"{}"'.format('|'.join(amenities))
-    toilets = get_nodes(bounds, toilets_tags)
-
-    amenities = ['water_points', 'drinking_water', 'pumps', 'water_pumps', 'well']
-    water_tags = '"amenity"~"{}"'.format('|'.join(amenities))
-    water_points = get_nodes(bounds, water_tags)
-        
-    amenities = ['supermarket', 'convenience', 'general', 'department_stores', 'wholesale', 'grocery', 'general']
-    shp_tags = '"shop"~"{}"'.format('|'.join(amenities))
-    shops = get_nodes(bounds, shp_tags)
-
-    return({
-        'toilets': toilets,
-        'water_points': water_points,
-        'shops': shops
-    })
-    
+    return((costs, traceback))       
     
 def generate_feature_vectors(network_r, mcp, inH, threshold, featIdx='tempID', verbose=True):
     ''' Generate individual market sheds for each feature in the input dataset
