@@ -1,4 +1,5 @@
 overturemaps
+GOSTrocks
 jupyter
 ipywidgets
 ipyleaflet
