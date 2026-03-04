@@ -47,11 +47,10 @@ def tPrint(s):
     print("%s\t%s" % (time.strftime("%H:%M:%S"), s))
 
 def get_speed(x, s_dict):
-    try: 
-        
+    try:         
         speed = s_dict[x]
     except:
-        if type(x) == list:
+        if isinstance(x, list):
             try:
                 speed = s_dict[x[0]]
             except:
@@ -280,8 +279,8 @@ def generate_market_sheds(inR, inH, out_file='', verbose=True, factor=1000, band
     if xx.shape[1] < xx.shape[0]:
         extra_size = np.zeros([xx.shape[0], (xx.shape[0] - xx.shape[1])]) + max_speed
         new_xx = np.hstack([xx, extra_size])        
-    mcp = graph.MCP_Geometric(xx)
     
+    mcp = graph.MCP_Geometric(xx)    
     dests = get_mcp_dests(inR, inH, makeset=False)
     if column_id:
         destinations_ids = list(inH[column_id])
