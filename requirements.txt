@@ -6,5 +6,4 @@ osmnx
 scikit-image
 pyproj
 scipy
-pandana
-GOSTNets
+GOSTnets
