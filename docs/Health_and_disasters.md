@@ -1,0 +1,4 @@
+# Access to Health Facilities during Disasters
+Understanding access to health facilities during disasters is crucial for effective emergency response and planning. Disasters can significantly disrupt transportation networks, making it challenging for affected populations to reach medical care. 
+
+We have a dedicated repository for analyzing and improving access to health facilities during disasters. You can [find it here](https://worldbank.github.io/Health-Access-Metrics/README.html). Here you can find detailed instructions on how to run Physical Access Metrics, and how to adapt them for situations involving disrupted transportation networks and emergency scenarios.

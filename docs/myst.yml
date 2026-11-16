@@ -12,7 +12,10 @@ project:
       children:
         - file: TUTORIAL_Friction_Surface.ipynb
         - file: TUTORIAL_MCP_market_access.ipynb
-
+    - title: Examples
+      children:
+        - file: Health_and_disasters.md
+        - file: Road_improvements.md
 site:
   options:
     favicon: images/favicon.ico
